@@ -428,7 +428,7 @@ input.input--big {
 .scoreboard__score {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1.2em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -678,6 +678,16 @@ input.input--big {
   align-items: center;
 }
 
+/* The buttons wrap as one group so a narrow window never strands one on its own line. */
+.host__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
 .code-chip {
   font-family: var(--font-display);
   font-weight: 900;
@@ -859,6 +869,13 @@ input.input--big {
   font-size: 1.2em;
   min-height: 2.8em;
   cursor: default;
+}
+
+/* The big screen scales its text with the viewport, so the letter badge scales too. */
+.screen .option__letter {
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1;
 }
 
 .screen .media img {

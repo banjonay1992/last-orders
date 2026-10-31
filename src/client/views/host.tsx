@@ -140,34 +140,36 @@ function TopBar({ view, send, token }: { view: HostView; send: Send; token: stri
         Teams join at <strong>{joinUrl.replace(/^https?:\/\//, "")}</strong>
       </span>
       <span class="spacer" />
-      <a class="btn btn--small" href={`/screen/${view.code}`} target="_blank" rel="noopener">
-        Open big screen
-      </a>
-      <button class="btn btn--small" type="button" onClick={() => copy(`${location.origin}/host/${view.code}#t=${token}`, "host")}>
-        {copied === "host" ? "Copied" : "Copy private host link"}
-      </button>
-      <QuizLoader view={view} send={send} />
-      <button
-        class="btn btn--small btn--ghost"
-        type="button"
-        onClick={() => {
-          if (confirm("Reset the game? Answers, scores and jokers are cleared. Teams stay in the room.")) send({ type: "host.resetGame" });
-        }}
-      >
-        Reset game
-      </button>
-      <button
-        class="btn btn--small btn--bad"
-        type="button"
-        onClick={() => {
-          if (confirm("Close the room for everyone and delete everything it holds?")) {
-            send({ type: "host.closeRoom" });
-            hostToken.set(view.code, null);
-          }
-        }}
-      >
-        Close room
-      </button>
+      <div class="host__actions">
+        <a class="btn btn--small" href={`/screen/${view.code}`} target="_blank" rel="noopener">
+          Open big screen
+        </a>
+        <button class="btn btn--small" type="button" onClick={() => copy(`${location.origin}/host/${view.code}#t=${token}`, "host")}>
+          {copied === "host" ? "Copied" : "Copy private host link"}
+        </button>
+        <QuizLoader view={view} send={send} />
+        <button
+          class="btn btn--small btn--ghost"
+          type="button"
+          onClick={() => {
+            if (confirm("Reset the game? Answers, scores and jokers are cleared. Teams stay in the room.")) send({ type: "host.resetGame" });
+          }}
+        >
+          Reset game
+        </button>
+        <button
+          class="btn btn--small btn--bad"
+          type="button"
+          onClick={() => {
+            if (confirm("Close the room for everyone and delete everything it holds?")) {
+              send({ type: "host.closeRoom" });
+              hostToken.set(view.code, null);
+            }
+          }}
+        >
+          Close room
+        </button>
+      </div>
     </header>
   );
 }
