@@ -7,3 +7,6 @@ dist/
 *.log
 .DS_Store
 coverage/
+
+# Local helper scripts and logs
+.local/

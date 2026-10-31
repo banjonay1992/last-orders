@@ -1,0 +1,159 @@
+{
+  "format": "last-orders-quiz",
+  "version": 1,
+  "title": "The Last Orders Sampler",
+  "rounds": [
+    {
+      "title": "Warm-up",
+      "mode": "answers",
+      "jokerAllowed": true,
+      "questions": [
+        {
+          "type": "choice",
+          "prompt": "How many sides does a hexagon have?",
+          "options": ["5", "6", "7", "8"],
+          "answer": 1,
+          "points": 1
+        },
+        {
+          "type": "text",
+          "prompt": "What is the capital city of Wales?",
+          "answers": ["Cardiff", "Caerdydd"],
+          "points": 1
+        },
+        {
+          "type": "choice",
+          "prompt": "Which planet is often called the Red Planet?",
+          "options": ["Venus", "Mars", "Jupiter", "Mercury"],
+          "answer": 1,
+          "points": 1
+        },
+        {
+          "type": "text",
+          "prompt": "In which English county is the town of Redruth?",
+          "answers": ["Cornwall", "Kernow"],
+          "points": 1,
+          "hostNotes": "Kernow is the Cornish name, accept it."
+        },
+        {
+          "type": "choice",
+          "prompt": "How many minutes are there in a day?",
+          "options": ["1,440", "2,400", "1,000", "3,600"],
+          "answer": 0,
+          "points": 1,
+          "timeLimitSeconds": 20
+        },
+        {
+          "type": "text",
+          "prompt": "What is the chemical symbol for gold?",
+          "answers": ["Au"],
+          "points": 1
+        }
+      ]
+    },
+    {
+      "title": "Picture round",
+      "mode": "answers",
+      "jokerAllowed": true,
+      "questions": [
+        {
+          "type": "text",
+          "prompt": "What time does this clock show?",
+          "answers": ["3 o'clock", "3:00", "15:00", "three o'clock", "3"],
+          "points": 1,
+          "media": { "kind": "image", "url": "/sample-media/clock.svg", "alt": "An analogue clock face with the hour hand on three and the minute hand on twelve" }
+        },
+        {
+          "type": "choice",
+          "prompt": "What is the name of this shape?",
+          "options": ["Hexagon", "Pentagon", "Octagon", "Heptagon"],
+          "answer": 1,
+          "points": 1,
+          "media": { "kind": "image", "url": "/sample-media/shape.svg", "alt": "A regular five-sided shape in amber" }
+        },
+        {
+          "type": "text",
+          "prompt": "Which country uses this flag?",
+          "answers": ["Japan", "Nippon"],
+          "points": 1,
+          "media": { "kind": "image", "url": "/sample-media/flag.svg", "alt": "A white flag with a red circle in the centre" }
+        },
+        {
+          "type": "text",
+          "prompt": "What do these two dice add up to?",
+          "answers": ["9", "nine"],
+          "points": 1,
+          "timeLimitSeconds": 15,
+          "media": { "kind": "image", "url": "/sample-media/dice.svg", "alt": "Two dice, one showing four spots and one showing five" }
+        }
+      ]
+    },
+    {
+      "title": "Music round",
+      "mode": "answers",
+      "jokerAllowed": true,
+      "questions": [
+        {
+          "type": "choice",
+          "prompt": "How many beeps are in the clip?",
+          "options": ["3", "4", "5", "6"],
+          "answer": 2,
+          "points": 1,
+          "media": { "kind": "audio", "label": "Clip 1", "url": "/sample-media/beeps.wav" }
+        },
+        {
+          "type": "choice",
+          "prompt": "Is the second note higher or lower than the first?",
+          "options": ["Higher", "Lower", "The same"],
+          "answer": 0,
+          "points": 1,
+          "media": { "kind": "audio", "label": "Clip 2", "url": "/sample-media/two-notes.wav" }
+        },
+        {
+          "type": "text",
+          "prompt": "This is the note orchestras tune to. What is its letter name?",
+          "answers": ["A", "A4", "La"],
+          "points": 2,
+          "media": { "kind": "audio", "label": "Clip 3", "url": "/sample-media/tuning-note.wav" },
+          "hostNotes": "It is 440 Hz, concert A."
+        }
+      ]
+    },
+    {
+      "title": "Fastest finger",
+      "mode": "buzzer",
+      "jokerAllowed": false,
+      "questions": [
+        {
+          "type": "text",
+          "prompt": "Which is the largest ocean on Earth?",
+          "answers": ["Pacific", "Pacific Ocean"],
+          "points": 1
+        },
+        {
+          "type": "text",
+          "prompt": "How many players does each side have on the pitch at the start of a football match?",
+          "answers": ["11", "eleven"],
+          "points": 1
+        },
+        {
+          "type": "text",
+          "prompt": "At what temperature in degrees Celsius does pure water freeze at sea level?",
+          "answers": ["0", "zero"],
+          "points": 1
+        },
+        {
+          "type": "text",
+          "prompt": "Which gas do plants take in from the air for photosynthesis?",
+          "answers": ["Carbon dioxide", "CO2"],
+          "points": 2
+        }
+      ]
+    }
+  ],
+  "tiebreaker": {
+    "prompt": "How many days are there in four consecutive years that include exactly one leap year?",
+    "answer": 1461,
+    "unit": "days"
+  }
+}
