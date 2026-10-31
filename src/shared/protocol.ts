@@ -24,7 +24,8 @@ export type Stage =
 
 export type QuestionPhase = "ready" | "open" | "locked" | "revealed";
 
-export type BuzzOutcome = "waiting" | "correct" | "wrong";
+/** "skipped": still queued when another team answered correctly. */
+export type BuzzOutcome = "waiting" | "correct" | "wrong" | "skipped";
 
 export type AnswerValue = string | number;
 

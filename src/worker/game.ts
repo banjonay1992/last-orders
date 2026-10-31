@@ -472,9 +472,13 @@ function reduceHost(state: RoomState, cmd: HostCommand, now: number): Result {
       if (qs.phase !== "open" && qs.phase !== "locked") return fail("wrong_phase", "This question is not live.");
       const idx = qs.buzzes.findIndex((b) => b.outcome === "waiting");
       if (idx === -1) return fail("wrong_phase", "Nobody is waiting to answer.");
-      const buzzes = qs.buzzes.map((b, i) => (i === idx ? { ...b, outcome: (cmd.correct ? "correct" : "wrong") as BuzzOutcome } : b));
-      if (cmd.correct) {
+      const buzzes = qs.buzzes.map((b, i): Buzz => {
+        if (i === idx) return { ...b, outcome: cmd.correct ? "correct" : "wrong" };
         // A correct answer ends the question; anyone still queued loses their turn.
+        if (cmd.correct && b.outcome === "waiting") return { ...b, outcome: "skipped" };
+        return b;
+      });
+      if (cmd.correct) {
         return done(withQuestion(state, cmd.questionKey, { ...qs, buzzes, phase: "locked", lockedAt: now, lockedBy: "host" }));
       }
       return done(withQuestion(state, cmd.questionKey, { ...qs, buzzes }));

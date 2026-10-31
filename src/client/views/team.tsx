@@ -378,6 +378,7 @@ function BuzzerBody({ view, q, conn, live }: { view: TeamView; q: PublicQuestion
   if (!mine) status = live ? "Buzz if you know it." : q.phase === "revealed" ? `The answer was ${q.reveal?.text}.` : "Buzzers are closed.";
   else if (mine.outcome === "correct") status = `Correct! +${q.points * (view.me.jokerRound === q.round ? 2 : 1)}`;
   else if (mine.outcome === "wrong") status = "Not quite. Over to the next team.";
+  else if (mine.outcome === "skipped") status = "Another team got there first.";
   else if (myTurn) status = "Your turn! Answer out loud.";
   else status = `You buzzed ${mine.position === 1 ? "first" : `in position ${mine.position}`}. Hold on.`;
   return (

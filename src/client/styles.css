@@ -925,6 +925,10 @@ input.input--big {
   font-weight: 800;
 }
 
+.buzz-queue li.is-skipped {
+  opacity: 0.5;
+}
+
 .buzz-queue li.is-wrong {
   opacity: 0.5;
   text-decoration: line-through;
