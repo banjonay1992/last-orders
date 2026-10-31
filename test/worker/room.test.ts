@@ -335,3 +335,63 @@ describe("abuse limits", () => {
     expect((await late.error()).code).toBe("room_full");
   });
 });
+
+describe("host control", () => {
+  it("issues a long random host token that is unrelated to the room code", async () => {
+    const a = await createRoom();
+    const b = await createRoom();
+    expect(a.hostToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    expect(a.hostToken).not.toContain(a.code);
+    expect(a.hostToken).not.toBe(b.hostToken);
+  });
+
+  it("never accepts the room code, or another room's token, as a host token", async () => {
+    const room = await createRoom();
+    const other = await createRoom();
+
+    const byCode = await connect(room.code, { type: "auth.host", hostToken: room.code });
+    expect((await byCode.error()).code).toBe("bad_message");
+    byCode.send({ type: "host.closeRoom" });
+    expect((await byCode.error()).code).toBe("not_authorised");
+
+    const padded = await connect(room.code, { type: "auth.host", hostToken: room.code.repeat(8) });
+    expect((await padded.error()).code).toBe("not_authorised");
+    expect(await padded.closed()).toBe(4001);
+
+    const borrowed = await connect(room.code, { type: "auth.host", hostToken: other.hostToken });
+    expect((await borrowed.error()).code).toBe("not_authorised");
+    expect(await borrowed.closed()).toBe(4001);
+
+    expect((await SELF.fetch(`${ORIGIN}/api/rooms/${room.code}`)).status).toBe(200);
+  });
+
+  it("refuses host commands from teams and the big screen", async () => {
+    const room = await createRoom();
+    const { client } = await joinAs(room.code, "Chancers");
+    await client.state();
+    for (const cmd of [{ type: "host.loadQuiz", quiz: QUIZ }, { type: "host.resetGame" }, { type: "host.closeRoom" }]) {
+      client.send(cmd);
+      expect((await client.error()).code).toBe("not_authorised");
+    }
+    const screen = await connect(room.code, { type: "auth.screen" });
+    await screen.state();
+    screen.send({ type: "host.closeRoom" });
+    expect((await screen.error()).code).toBe("not_authorised");
+    expect((await SELF.fetch(`${ORIGIN}/api/rooms/${room.code}`)).status).toBe(200);
+  });
+
+  it("never sends the host token to teams, the big screen or the lookup route", async () => {
+    const room = await createRoom();
+    const host = await hostOf(room);
+    host.send({ type: "host.loadQuiz", quiz: QUIZ });
+    const { client } = await joinAs(room.code, "Nosy");
+    const screen = await connect(room.code, { type: "auth.screen" });
+    await host.state<HostView>((v) => v.quiz !== null && v.teams.length === 1);
+    await client.state();
+    await screen.state();
+    const info = await (await SELF.fetch(`${ORIGIN}/api/rooms/${room.code}`)).text();
+    for (const seen of [JSON.stringify(client.messages), JSON.stringify(screen.messages), JSON.stringify(host.messages), info]) {
+      expect(seen).not.toContain(room.hostToken);
+    }
+  });
+});
