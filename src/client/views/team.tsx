@@ -41,6 +41,8 @@ export function TeamPage({ code }: { code: string }) {
         conn.authenticate({ type: "auth.resume", token: msg.token }, false);
       }),
       conn.on("error", (errCode) => {
+        // A refused join must not be retried automatically on reconnect.
+        if (errCode === "name_taken" || errCode === "room_full") conn.clearAuth();
         if (errCode === "unknown_token") {
           teamToken.set(code, null);
           conn.clearAuth();
