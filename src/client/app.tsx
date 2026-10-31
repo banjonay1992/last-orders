@@ -3,6 +3,7 @@ import { usePath } from "./router";
 import { Landing } from "./views/landing";
 import { HostPage } from "./views/host";
 import { TeamPage } from "./views/team";
+import { ScreenPage } from "./views/screen";
 import { Ended } from "./components";
 
 function NotFound() {
@@ -25,7 +26,7 @@ export function App() {
     case "play":
       return validCode ? <TeamPage key={code} code={code} /> : <Landing />;
     case "screen":
-      return validCode ? <NotFound /> : <NotFound />;
+      return validCode ? <ScreenPage key={code} code={code} /> : <NotFound />;
     default:
       return <NotFound />;
   }
