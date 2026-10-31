@@ -7,7 +7,7 @@ A pub quiz kit where every phone is the buzzer.
 
 The quizmaster runs the night from a laptop. Teams join from their own phones by typing a four-letter room code: no accounts, no app to install, just a team nickname. A third view goes on the pub TV and shows the room code, the questions, the buzz order and the scores.
 
-**Status:** v0.1.0, the first working version. It runs locally and is covered by unit tests and tests that play games over real WebSockets inside the Workers runtime. It has not yet been used at a real quiz night; that is the first item on the [roadmap](ROADMAP.md).
+**Status:** v0.1.0, the first working version. It runs locally and is covered by unit tests and tests that play games over real WebSockets inside the Workers runtime. It has not yet been used at a real quiz night; that is the first item on the [roadmap](ROADMAP.md), tracked in [#1](https://github.com/banjonay1992/last-orders/issues/1).
 
 ## Screenshots
 
@@ -216,7 +216,7 @@ The team view uses large buttons (at least 56 pixels tall for main actions), kee
 
 ## Limitations
 
-- The front end has been checked by type-checking, building and the scripted game used for the screenshots, and the server by automated tests over real WebSockets, but there are no automated browser tests in CI yet. See the roadmap.
+- The front end has been checked by type-checking, building and the scripted game used for the screenshots, and the server by automated tests over real WebSockets, but there are no automated browser tests in CI yet ([#2](https://github.com/banjonay1992/last-orders/issues/2)).
 - Rate limits count per client IP and, with the Cloudflare binding, per Cloudflare location, so they slow abuse down rather than stop a determined, distributed attacker. Add Cloudflare WAF rules in front of a busy public deployment if you need more.
 - Room codes are four letters from a 20-letter alphabet (160,000 codes). That is fine for a pub but not a secret: anyone with the code can watch the big screen view or join as a team. The host controls are protected by a separate long random token.
 - Buzz order is the order buzzes reach the room. A team on a slow mobile connection is at a small disadvantage, as it would be with any networked buzzer. There is no latency compensation.
