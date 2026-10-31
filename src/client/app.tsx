@@ -4,6 +4,7 @@ import { Landing } from "./views/landing";
 import { HostPage } from "./views/host";
 import { TeamPage } from "./views/team";
 import { ScreenPage } from "./views/screen";
+import { EditorPage } from "./views/editor";
 import { Ended } from "./components";
 
 function NotFound() {
@@ -20,7 +21,7 @@ export function App() {
     case undefined:
       return <Landing />;
     case "editor":
-      return <NotFound />;
+      return <EditorPage />;
     case "host":
       return validCode ? <HostPage key={code} code={code} /> : <NotFound />;
     case "play":
