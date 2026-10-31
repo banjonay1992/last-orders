@@ -17,3 +17,14 @@ The first working version.
 - Quiz editor with live validation, browser drafts and JSON import and export.
 - Sample quiz with original questions, pictures and synthesised audio clips.
 - Unit tests and Workers runtime integration tests, GitHub Actions CI, and documentation of the quiz format.
+- Screenshots of a sample game, and deployment instructions for Workers Builds.
+
+### Security
+
+- Per-IP rate limits on room creation, room lookups and WebSocket connections, using Cloudflare rate limiting bindings with an in-memory fallback.
+- A message budget for each WebSocket in the room; floods are dropped with a warning and persistent floods are disconnected.
+- Tests that only the long random host token, never the room code or another room's token, grants host control, and that the token is never sent to teams or the big screen.
+
+### Fixed
+
+- Big screen option letters now line up with their badges, scores are readable on a TV, and the host toolbar wraps tidily on narrower laptops.

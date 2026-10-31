@@ -1,8 +1,35 @@
 # Last Orders
 
+[![CI](https://github.com/banjonay1992/last-orders/actions/workflows/ci.yml/badge.svg)](https://github.com/banjonay1992/last-orders/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 A pub quiz kit where every phone is the buzzer.
 
 The quizmaster runs the night from a laptop. Teams join from their own phones by typing a four-letter room code: no accounts, no app to install, just a team nickname. A third view goes on the pub TV and shows the room code, the questions, the buzz order and the scores.
+
+**Status:** v0.1.0, the first working version. It runs locally and is covered by unit tests and tests that play games over real WebSockets inside the Workers runtime. It has not yet been used at a real quiz night; that is the first item on the [roadmap](ROADMAP.md).
+
+## Screenshots
+
+These were captured from `wrangler dev` while a script played the sample quiz with three invented teams on phone-sized screens.
+
+| Joining | Answering | Buzzer | Answers locked |
+| --- | --- | --- | --- |
+| <img src="docs/screenshots/team-join.png" alt="Phone showing the team name form for room ZBPN" width="190"> | <img src="docs/screenshots/team-answer.png" alt="Phone showing a multiple choice question with answer B selected" width="190"> | <img src="docs/screenshots/team-buzzer.png" alt="Phone showing a large red buzz button" width="190"> | <img src="docs/screenshots/team-locked.png" alt="Phone showing the team's locked answer" width="190"> |
+
+**Host console**, mid-question, with answers arriving and fuzzy marking hints for free text:
+
+<img src="docs/screenshots/host-question.png" alt="Host console showing a multiple choice question, the running order and three teams" width="800">
+
+<img src="docs/screenshots/host-marking.png" alt="Host console marking free-text answers, with Cardif flagged as close to Cardiff" width="800">
+
+**Big screen** for the pub TV, showing the question and then the scores:
+
+<img src="docs/screenshots/screen-question.png" alt="Big screen showing a multiple choice question and how many teams have answered" width="800">
+
+<img src="docs/screenshots/screen-scores.png" alt="Big screen scoreboard with three teams" width="800">
+
+More in [docs/screenshots](docs/screenshots): the [lobby with its QR code](docs/screenshots/screen-lobby.png), the [buzz order on the big screen](docs/screenshots/screen-buzzer.png) and [on the host console](docs/screenshots/host-buzzer.png), a [phone after buzzing first](docs/screenshots/team-buzzed.png) and the [quiz editor](docs/screenshots/editor.png).
 
 ## What it does
 
@@ -59,17 +86,44 @@ Other commands:
 | `npm run typecheck` | Type-checks the Worker, the browser code and the tests separately |
 | `npm run build` | Builds the front end into `dist/client` |
 
-## Deploying to Cloudflare
+## Deploy to Cloudflare
 
-These are instructions only; nothing in this repository deploys automatically.
+Nothing in this repository deploys automatically, and no secrets or environment variables are needed. You need a Cloudflare account; check the current Workers, Durable Objects and rate limiting limits and pricing for your plan before running a busy quiz night.
 
-1. Create a Cloudflare account if you do not have one. Durable Objects with SQLite storage, which this project uses, are available on the Workers Free plan at the time of writing, but check the current limits and pricing on Cloudflare's site before running a busy quiz night.
-2. Log in from this folder with `npx wrangler login`.
-3. Optionally change `name` in `wrangler.jsonc`. It becomes part of your `*.workers.dev` address.
-4. Run `npm run deploy`. This builds the front end and runs `wrangler deploy`, which uploads the Worker, the static files and the Durable Object class, and applies the `v1` migration that creates the `Room` class.
-5. Wrangler prints your address. To use your own domain, add a custom domain or route to the Worker in the Cloudflare dashboard.
+Everything the Worker needs is declared in `wrangler.jsonc`, so a deploy creates it:
 
-There are no secrets or environment variables to configure. The project does not need a `.dev.vars` file.
+| Binding | Type | What it is for |
+| --- | --- | --- |
+| `ROOMS` | Durable Object namespace, class `Room` | One object per room. The `v1` migration creates the class with SQLite storage. |
+| `ASSETS` | Static assets from `dist/client` | The front end. |
+| `CREATE_LIMITER` | Rate limiting, 10 requests per 60 seconds | Room creation per client IP. |
+| `CONNECT_LIMITER` | Rate limiting, 120 requests per 60 seconds | Room lookups and WebSocket connections per client IP. |
+
+The rate limiting `namespace_id` values (`4101` and `4102`) only need to be unique within your Cloudflare account. If your plan does not offer the rate limiting binding, delete the `ratelimits` block: the Worker then falls back to an in-memory limiter per isolate, which is weaker but still stops a single client hammering one instance.
+
+### With Workers Builds (Git integration)
+
+1. In the Cloudflare dashboard, go to **Workers & Pages**, choose **Create**, then **Import a repository**, and pick your fork of this repository.
+2. Keep the Worker name as `last-orders`, or change `name` in `wrangler.jsonc` to match the name you choose. Workers Builds fails if the two differ.
+3. Use these build settings:
+
+   | Setting | Value |
+   | --- | --- |
+   | Root directory | `/` |
+   | Build command | `npm run build` |
+   | Deploy command | `npx wrangler deploy` |
+   | Non-production branch deploy command | `npx wrangler versions upload` |
+   | Build variable | `NODE_VERSION` = `22`, if the build image does not pick up `.nvmrc` |
+
+   Dependencies are installed from `package-lock.json` before the build command runs.
+4. Save and deploy. Each push to the production branch then builds the front end and runs `wrangler deploy`, which uploads the Worker, the static files and the Durable Object class, applies the `v1` migration and creates the rate limiting bindings.
+5. Your address is shown on the Worker's page. To use your own domain, add a custom domain or route to the Worker.
+
+### From your own computer
+
+1. Log in from this folder with `npx wrangler login`.
+2. Optionally change `name` in `wrangler.jsonc`. It becomes part of your `*.workers.dev` address.
+3. Run `npm run deploy`, which builds the front end and runs `wrangler deploy`.
 
 If you later rename or remove the `Room` class, add a new entry to `migrations` in `wrangler.jsonc` rather than editing the existing one. Cloudflare's [Durable Objects migrations guide](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/) explains how.
 
@@ -140,6 +194,14 @@ ready ──open──> open ──lock──> locked ──reveal──> reveal
 
 The client sends a plain `ping` every 25 seconds, which the runtime answers with `pong` without waking the room.
 
+## Security
+
+- **Host control needs the host token.** Creating a room returns a four-letter room code and, separately, a 32-character random host token (24 bytes from `crypto.getRandomValues`). Only a socket that presents the token can send host commands. The room code is never accepted in its place, another room's token is refused, and the token is never sent to teams, the big screen or the room lookup route. Tests in `test/worker/room.test.ts` check each of these.
+- **The token stays out of server logs.** The host's private link carries the token after `#`, which browsers do not send to the server, and the page removes it from the address bar once it has been read.
+- **Rate limits per client IP.** Room creation is limited to 10 a minute, and room lookups and WebSocket connections to 120 a minute each. Refused requests get HTTP 429; a refused WebSocket is told why and closed with code 4029, and the phone retries with backoff. The connection limit is generous because a whole pub can share one Wi-Fi address and phones reconnect each time they wake up.
+- **Limits per socket and per room.** Each socket may send a burst of 20 messages, refilled at 5 a second. Extra messages are dropped with a warning, and a socket that sends 60 in a row over its budget is disconnected. A room holds at most 40 teams and 250 connections, and messages over 110,000 characters are refused.
+- **Everything from a client is validated** with zod before it reaches the game logic, and teams only ever receive their own view of the game.
+
 ## Privacy
 
 - The only information a team gives is a nickname. Nobody signs in.
@@ -154,8 +216,8 @@ The team view uses large buttons (at least 56 pixels tall for main actions), kee
 
 ## Limitations
 
-- The front end has been checked by type-checking and building, and the server by automated tests over real WebSockets, but there are no automated browser tests yet. See the roadmap.
-- There is no rate limiting on room creation or join attempts. A public deployment should add Cloudflare rate limiting rules or the rate limiting binding before being widely shared.
+- The front end has been checked by type-checking, building and the scripted game used for the screenshots, and the server by automated tests over real WebSockets, but there are no automated browser tests in CI yet. See the roadmap.
+- Rate limits count per client IP and, with the Cloudflare binding, per Cloudflare location, so they slow abuse down rather than stop a determined, distributed attacker. Add Cloudflare WAF rules in front of a busy public deployment if you need more.
 - Room codes are four letters from a 20-letter alphabet (160,000 codes). That is fine for a pub but not a secret: anyone with the code can watch the big screen view or join as a team. The host controls are protected by a separate long random token.
 - Buzz order is the order buzzes reach the room. A team on a slow mobile connection is at a small disadvantage, as it would be with any networked buzzer. There is no latency compensation.
 - Each team plays from one phone. A second phone cannot yet join an existing team, and there is no captain or voting.
