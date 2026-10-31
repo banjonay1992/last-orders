@@ -90,6 +90,8 @@ export const HostCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("host.tiebreakStart"), teamIds: z.array(teamId).max(LIMITS.teamsPerRoom).optional() }),
   z.object({ type: z.literal("host.tiebreakReveal") }),
   z.object({ type: z.literal("host.resetGame") }),
+  /** Ends the room for everyone and deletes everything it held. */
+  z.object({ type: z.literal("host.closeRoom") }),
 ]);
 
 export const TeamCommandSchema = z.discriminatedUnion("type", [

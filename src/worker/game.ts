@@ -520,6 +520,10 @@ function reduceHost(state: RoomState, cmd: HostCommand, now: number): Result {
       return done({ ...state, stage: { kind: "tiebreak" }, tiebreak: { teamIds, phase: "open", openedAt: now, answers: {} } });
     }
 
+    case "host.closeRoom":
+      // Handled by the Durable Object, which owns storage and sockets.
+      return fail("bad_message", "Closing a room is not a game action.");
+
     case "host.tiebreakReveal": {
       if (!state.tiebreak) return fail("wrong_phase", "Start the tie-breaker first.");
       if (state.tiebreak.phase === "revealed") return fail("wrong_phase", "Already revealed.");
