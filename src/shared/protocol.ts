@@ -162,7 +162,8 @@ export type ErrorCode =
   | "joker_too_late"
   | "unknown_team"
   | "no_tie"
-  | "not_in_tiebreak";
+  | "not_in_tiebreak"
+  | "rate_limited";
 
 export interface PublicTeam {
   id: string;

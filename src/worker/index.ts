@@ -3,13 +3,33 @@
 // the static assets (the front end).
 
 import { isRoomCode, normaliseRoomCode } from "../shared/limits";
+import type { ServerMessage } from "../shared/protocol";
 import type { Env } from "./env";
 import { randomId, randomRoomCode } from "./ids";
+import { allowed, clientKey, limiterFor } from "./ratelimit";
 
 export { Room } from "./room";
 
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+
+const TOO_MANY = "Too many requests from this network. Please wait a minute and try again.";
+
+/** Close code for a socket refused by the rate limiter. Clients retry it with backoff. */
+export const CLOSE_RATE_LIMITED = 4029;
+
+/**
+ * A browser cannot read the status of a refused WebSocket upgrade, so a
+ * rate-limited socket is accepted just long enough to say why, then closed.
+ */
+function refuseSocket(message: string): Response {
+  const pair = new WebSocketPair();
+  const [client, server] = [pair[0], pair[1]];
+  server.accept();
+  server.send(JSON.stringify({ type: "error", code: "rate_limited", message } satisfies ServerMessage));
+  server.close(CLOSE_RATE_LIMITED, "rate limited");
+  return new Response(null, { status: 101, webSocket: client });
+}
 
 function roomStub(env: Env, code: string) {
   return env.ROOMS.get(env.ROOMS.idFromName(code));
@@ -38,6 +58,9 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (parts.length === 2 && parts[1] === "rooms") {
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+    if (!(await allowed(limiterFor(env.CREATE_LIMITER, "createRoom"), `create:${clientKey(request)}`))) {
+      return json({ error: "Too many new rooms from this network. Please wait a minute and try again." }, 429);
+    }
     return createRoom(env);
   }
 
@@ -45,11 +68,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     const code = normaliseRoomCode(parts[2]);
     if (!isRoomCode(code)) return json({ error: "Room codes are four letters" }, 400);
     const stub = roomStub(env, code);
+    const connect = limiterFor(env.CONNECT_LIMITER, "connect");
     if (parts.length === 3 && request.method === "GET") {
+      if (!(await allowed(connect, `lookup:${clientKey(request)}`))) return json({ error: TOO_MANY }, 429);
       const res = await stub.fetch("https://room/info");
       return json(await res.json(), res.status);
     }
     if (parts.length === 4 && parts[3] === "ws") {
+      const upgrade = request.headers.get("Upgrade")?.toLowerCase() === "websocket";
+      if (upgrade && !(await allowed(connect, `ws:${clientKey(request)}`))) return refuseSocket(TOO_MANY);
       // Forward the upgrade with its original headers so the room can accept it.
       return stub.fetch(new Request("https://room/ws", request));
     }

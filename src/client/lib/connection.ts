@@ -173,6 +173,8 @@ export async function fetchRoomInfo(code: string): Promise<{ exists: boolean; qu
   try {
     const res = await fetch(`/api/rooms/${encodeURIComponent(code)}`, { cache: "no-store" });
     if (res.status === 404 || res.status === 400) return { exists: false };
+    // Rate limited: carry on, and the socket explains and retries with backoff.
+    if (res.status === 429) return { exists: true };
     return (await res.json()) as { exists: boolean; quizTitle: string | null; teams: number };
   } catch {
     // Offline or the Worker is down; let the socket retry rather than claiming the room is gone.

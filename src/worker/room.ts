@@ -32,6 +32,7 @@ import {
   type RoomState,
 } from "./game";
 import { randomId } from "./ids";
+import { SOCKET_DROP_LIMIT, SOCKET_MESSAGES, TokenBucket } from "./ratelimit";
 import { hostView, screenView, teamView } from "./views";
 
 type Attachment = { role: "pending" } | { role: "host" } | { role: "screen" } | { role: "team"; teamId: string };
@@ -47,8 +48,17 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/** Close code for a socket that kept flooding the room after being warned. */
+export const CLOSE_FLOODING = 1008;
+
 export class Room extends DurableObject<Env> {
   private room: RoomState | null = null;
+  /**
+   * Message budgets per socket. Held in memory only: if the room hibernates
+   * the budgets start full again, which is fine because a quiet room is not
+   * being flooded.
+   */
+  private buckets = new WeakMap<WebSocket, TokenBucket>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -168,6 +178,7 @@ export class Room extends DurableObject<Env> {
       ws.close(4000, "room closed");
       return;
     }
+    if (!this.withinBudget(ws)) return;
     const parsed = parseClientMessage(raw);
     if (!parsed.ok) return this.sendError(ws, "bad_message", parsed.error);
     const msg = parsed.message;
@@ -191,6 +202,30 @@ export class Room extends DurableObject<Env> {
     const result = reduce(this.room, actor, msg as HostCommand | TeamCommand, Date.now());
     if (!result.ok) return this.sendError(ws, result.error.code, result.error.message);
     await this.commit(result.state);
+  }
+
+  /**
+   * Charges one message to the socket's budget. Over budget, the message is
+   * dropped with an occasional warning; a socket that keeps going is closed.
+   */
+  private withinBudget(ws: WebSocket): boolean {
+    const now = Date.now();
+    let bucket = this.buckets.get(ws);
+    if (!bucket) {
+      bucket = new TokenBucket(SOCKET_MESSAGES, now);
+      this.buckets.set(ws, bucket);
+    }
+    if (bucket.take(now)) return true;
+    if (bucket.dropped >= SOCKET_DROP_LIMIT) {
+      try {
+        ws.close(CLOSE_FLOODING, "too many messages");
+      } catch {
+        // Already closing.
+      }
+    } else if (bucket.dropped === 1 || bucket.dropped % 10 === 0) {
+      this.sendError(ws, "rate_limited", "Slow down: that was too many messages at once. Some were ignored.");
+    }
+    return false;
   }
 
   private async authenticate(ws: WebSocket, msg: AuthMessage): Promise<void> {

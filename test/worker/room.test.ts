@@ -5,10 +5,21 @@
 import { evictDurableObject, runInDurableObject, SELF } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import { LIMITS } from "../../src/shared/limits";
 import type { HostView, ScreenView, ServerMessage, TeamView } from "../../src/shared/protocol";
 import type { QuizInput } from "../../src/shared/quiz";
+import { CLOSE_RATE_LIMITED, handleApi } from "../../src/worker/index";
+import { RATE_POLICIES } from "../../src/worker/ratelimit";
+import { CLOSE_FLOODING } from "../../src/worker/room";
 
 const ORIGIN = "https://quiz.test";
+
+// Requests are rate limited per client IP, so each test gets its own
+// made-up address from the documentation range unless it asks for one.
+let ipCounter = 0;
+const freshIp = () => `198.51.100.${++ipCounter}`;
+let testIp = freshIp();
+const ipHeaders = (ip = testIp) => ({ "CF-Connecting-IP": ip });
 
 const QUIZ: QuizInput = {
   format: "last-orders-quiz",
@@ -25,13 +36,27 @@ class Client {
   private cursor = 0;
   private wake: (() => void) | null = null;
 
+  closeCode: number | null = null;
+
   constructor(readonly ws: WebSocket) {
     ws.addEventListener("message", (event) => {
       if (event.data === "pong") return;
       this.messages.push(JSON.parse(event.data as string) as ServerMessage);
       this.wake?.();
     });
-    ws.addEventListener("close", () => this.wake?.());
+    ws.addEventListener("close", (event) => {
+      this.closeCode = event.code;
+      this.wake?.();
+    });
+  }
+
+  async closed(timeoutMs = 3000): Promise<number> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.closeCode === null) {
+      if (Date.now() > deadline) throw new Error("Timed out waiting for the socket to close");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return this.closeCode;
   }
 
   send(msg: unknown): void {
@@ -69,13 +94,14 @@ class Client {
 }
 
 async function createRoom(): Promise<{ code: string; hostToken: string }> {
-  const res = await SELF.fetch(`${ORIGIN}/api/rooms`, { method: "POST" });
+  testIp = freshIp();
+  const res = await SELF.fetch(`${ORIGIN}/api/rooms`, { method: "POST", headers: ipHeaders() });
   expect(res.status).toBe(201);
   return res.json();
 }
 
-async function connect(code: string, first?: unknown): Promise<Client> {
-  const res = await SELF.fetch(`${ORIGIN}/api/rooms/${code}/ws`, { headers: { Upgrade: "websocket" } });
+async function connect(code: string, first?: unknown, ip = testIp): Promise<Client> {
+  const res = await SELF.fetch(`${ORIGIN}/api/rooms/${code}/ws`, { headers: { Upgrade: "websocket", ...ipHeaders(ip) } });
   expect(res.status).toBe(101);
   const ws = res.webSocket!;
   ws.accept();
@@ -242,5 +268,70 @@ describe("room over WebSockets", () => {
     expect((await SELF.fetch(`${ORIGIN}/api/rooms/${room.code}`)).status).toBe(404);
     const keys = await runInDurableObject(stub(room.code), async (_instance, state) => [...(await state.storage.list()).keys()]);
     expect(keys).toEqual([]);
+  });
+});
+
+describe("abuse limits", () => {
+  const deny = { limit: async () => ({ success: false }) };
+  const bare = () => ({ ASSETS: env.ASSETS, ROOMS: env.ROOMS });
+
+  it("limits room creation per client IP", async () => {
+    const ip = freshIp();
+    const create = () => SELF.fetch(`${ORIGIN}/api/rooms`, { method: "POST", headers: ipHeaders(ip) });
+    for (let i = 0; i < RATE_POLICIES.createRoom.limit; i++) expect((await create()).status).toBe(201);
+    const refused = await create();
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as { error: string }).error).toMatch(/too many/i);
+    // Someone else in a different pub is unaffected.
+    expect((await SELF.fetch(`${ORIGIN}/api/rooms`, { method: "POST", headers: ipHeaders(freshIp()) })).status).toBe(201);
+  });
+
+  it("limits room lookups per client IP", async () => {
+    const room = await createRoom();
+    const ip = freshIp();
+    const look = () => SELF.fetch(`${ORIGIN}/api/rooms/${room.code}`, { headers: ipHeaders(ip) });
+    for (let i = 0; i < RATE_POLICIES.connect.limit; i++) expect((await look()).status).toBe(200);
+    expect((await look()).status).toBe(429);
+  });
+
+  it("explains a refused socket and closes it with a retryable code", async () => {
+    const room = await createRoom();
+    const req = new Request(`${ORIGIN}/api/rooms/${room.code}/ws`, { headers: { Upgrade: "websocket", ...ipHeaders() } });
+    const res = await handleApi(req, { ...bare(), CONNECT_LIMITER: deny });
+    expect(res.status).toBe(101);
+    const ws = res.webSocket!;
+    const client = new Client(ws);
+    ws.accept();
+    expect(await client.error()).toMatchObject({ code: "rate_limited" });
+    expect(await client.closed()).toBe(CLOSE_RATE_LIMITED);
+    // Nothing reached the room.
+    expect(await runInDurableObject(stub(room.code), (_instance, state) => state.getWebSockets().length)).toBe(0);
+  });
+
+  it("falls back to an in-memory limiter when the bindings are missing", async () => {
+    const ip = freshIp();
+    const create = () => handleApi(new Request(`${ORIGIN}/api/rooms`, { method: "POST", headers: ipHeaders(ip) }), bare());
+    for (let i = 0; i < RATE_POLICIES.createRoom.limit; i++) expect((await create()).status).toBe(201);
+    expect((await create()).status).toBe(429);
+  });
+
+  it("drops a flood of messages from one socket, warns, then disconnects it", async () => {
+    const room = await createRoom();
+    const host = await hostOf(room);
+    const { client } = await joinAs(room.code, "Spammers");
+    for (let i = 0; i < 30; i++) client.send({ type: "team.joker", round: 0 });
+    expect((await client.next((m) => m.type === "error" && m.code === "rate_limited")).type).toBe("error");
+    for (let i = 0; i < 100; i++) client.send({ type: "team.joker", round: 0 });
+    expect(await client.closed()).toBe(CLOSE_FLOODING);
+    // The host's own socket has its own budget and still works.
+    host.send({ type: "host.adjust", teamId: (await host.state<HostView>((v) => v.teams.length === 1)).teams[0]!.id, delta: 1 });
+    await host.state<HostView>((v) => v.teams[0]?.score === 1);
+  });
+
+  it(`seats at most ${LIMITS.teamsPerRoom} teams in a room`, async () => {
+    const room = await createRoom();
+    for (let i = 0; i < LIMITS.teamsPerRoom; i++) await joinAs(room.code, `Table ${i + 1}`);
+    const late = await connect(room.code, { type: "auth.join", name: "One too many" });
+    expect((await late.error()).code).toBe("room_full");
   });
 });
