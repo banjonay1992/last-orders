@@ -2,6 +2,7 @@ import { isRoomCode, normaliseRoomCode } from "../shared/limits";
 import { usePath } from "./router";
 import { Landing } from "./views/landing";
 import { HostPage } from "./views/host";
+import { TeamPage } from "./views/team";
 import { Ended } from "./components";
 
 function NotFound() {
@@ -22,7 +23,7 @@ export function App() {
     case "host":
       return validCode ? <HostPage key={code} code={code} /> : <NotFound />;
     case "play":
-      return validCode ? <NotFound /> : <Landing />;
+      return validCode ? <TeamPage key={code} code={code} /> : <Landing />;
     case "screen":
       return validCode ? <NotFound /> : <NotFound />;
     default:
