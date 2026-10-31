@@ -32,7 +32,7 @@ import {
   type RoomState,
 } from "./game";
 import { randomId } from "./ids";
-import { SOCKET_DROP_LIMIT, SOCKET_MESSAGES, TokenBucket } from "./ratelimit";
+import { CLOSE_FLOODING, SOCKET_DROP_LIMIT, SOCKET_MESSAGES, TokenBucket } from "./ratelimit";
 import { hostView, screenView, teamView } from "./views";
 
 type Attachment = { role: "pending" } | { role: "host" } | { role: "screen" } | { role: "team"; teamId: string };
@@ -47,9 +47,6 @@ function chunk<T>(items: T[], size: number): T[][] {
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
 }
-
-/** Close code for a socket that kept flooding the room after being warned. */
-export const CLOSE_FLOODING = 1008;
 
 export class Room extends DurableObject<Env> {
   private room: RoomState | null = null;

@@ -6,17 +6,17 @@ import { isRoomCode, normaliseRoomCode } from "../shared/limits";
 import type { ServerMessage } from "../shared/protocol";
 import type { Env } from "./env";
 import { randomId, randomRoomCode } from "./ids";
-import { allowed, clientKey, limiterFor } from "./ratelimit";
+import { allowed, clientKey, CLOSE_RATE_LIMITED, limiterFor } from "./ratelimit";
 
 export { Room } from "./room";
 
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 
-const TOO_MANY = "Too many requests from this network. Please wait a minute and try again.";
+// Only handlers and Durable Object classes may be exported from this module:
+// the runtime refuses to start if the entry point exports anything else.
 
-/** Close code for a socket refused by the rate limiter. Clients retry it with backoff. */
-export const CLOSE_RATE_LIMITED = 4029;
+const TOO_MANY = "Too many requests from this network. Please wait a minute and try again.";
 
 /**
  * A browser cannot read the status of a refused WebSocket upgrade, so a

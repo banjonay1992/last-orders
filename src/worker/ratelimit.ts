@@ -99,8 +99,14 @@ export async function allowed(limiter: Limiter, key: string): Promise<boolean> {
   }
 }
 
+/** Close code for a socket refused by the rate limiter. Clients retry it with backoff. */
+export const CLOSE_RATE_LIMITED = 4029;
+
 // ---------------------------------------------------------------------------
 // Per-socket message rate
+
+/** Close code for a socket that kept flooding the room after being warned. */
+export const CLOSE_FLOODING = 1008;
 
 export interface BucketPolicy {
   /** Messages a socket may send in a burst. */

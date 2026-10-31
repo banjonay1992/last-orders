@@ -8,9 +8,8 @@ import { describe, expect, it } from "vitest";
 import { LIMITS } from "../../src/shared/limits";
 import type { HostView, ScreenView, ServerMessage, TeamView } from "../../src/shared/protocol";
 import type { QuizInput } from "../../src/shared/quiz";
-import { CLOSE_RATE_LIMITED, handleApi } from "../../src/worker/index";
-import { RATE_POLICIES } from "../../src/worker/ratelimit";
-import { CLOSE_FLOODING } from "../../src/worker/room";
+import { handleApi } from "../../src/worker/index";
+import { CLOSE_FLOODING, CLOSE_RATE_LIMITED, RATE_POLICIES } from "../../src/worker/ratelimit";
 
 const ORIGIN = "https://quiz.test";
 
