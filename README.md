@@ -7,7 +7,7 @@ A pub quiz kit where every phone is the buzzer.
 
 The quizmaster runs the night from a laptop. Teams join from their own phones by typing a four-letter room code: no accounts, no app to install, just a team nickname. A third view goes on the pub TV and shows the room code, the questions, the buzz order and the scores.
 
-**Status:** v0.1.0, the first working version. It runs locally and is covered by unit tests and tests that play games over real WebSockets inside the Workers runtime. It has not yet been used at a real quiz night; that is the first item on the [roadmap](ROADMAP.md), tracked in [#1](https://github.com/banjonay1992/last-orders/issues/1).
+**Status:** v0.1.0, the first working version. It is live at **https://last-orders.nathancoleasi.workers.dev**, runs locally, and is covered by unit tests and tests that play games over real WebSockets inside the Workers runtime. It has not yet been used at a real quiz night; that is the first item on the [roadmap](ROADMAP.md), tracked in [#1](https://github.com/banjonay1992/last-orders/issues/1).
 
 ## Screenshots
 
